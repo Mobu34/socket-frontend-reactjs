@@ -1,45 +1,36 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import io from "socket.io-client";
 
 const socket = io("http://localhost:3001", { transports: ["websocket"] });
 
 function App() {
-  console.log({ socket });
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [responses, setResponses] = useState([]);
+  const [responses, setResponses] = useState<any[]>([]);
+
   useEffect(() => {
     socket.on("connect", () => {
-      console.log("CONNECTED");
       setIsConnected(socket.connected);
     });
 
     socket.on("disconnect", () => {
-      console.log("DISCO");
       setIsConnected(true);
     });
 
     socket.on("getChat", (res) => {
-      const newResponses = [...responses];
-      console.log(newResponses);
-      newResponses.push(res as never);
-      setResponses(newResponses);
+      setResponses([...responses, res]);
     });
 
     return () => {
-      console.log("RETURN");
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("getChat");
     };
-  }, []);
+  }, [socket, responses]);
 
   const onSubmit = (event: any) => {
     event.preventDefault();
-    socket.emit("events", event.target.message.value, (res: any) => {
-      const newResponses = [...responses];
-      newResponses.push(res as never);
-      setResponses(newResponses);
-    });
+    socket.emit("events", event.target.message.value);
   };
 
   return (
@@ -59,7 +50,12 @@ function App() {
         <p>ID = {socket?.id ? socket.id : undefined}</p>
         <h1>My Chat</h1>
         {responses.map((response, index) => {
-          return <p key={index}>FROM server : {response}</p>;
+          const isFromSender = response.socketId !== socket.id;
+          return (
+            <p key={index}>
+              {isFromSender ? "SENDER" : "You"} : {response.message}
+            </p>
+          );
         })}
       </>
     </div>
